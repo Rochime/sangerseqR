@@ -27,42 +27,37 @@ setMethod("sangerseq", "abif",
                             obj@data$DATA.11, 
                             obj@data$DATA.12), 
                           ncol=4)
-    orderedmatrix <- cbind(tracematrix[,regexpr("A", obj@data$FWO_.1)[1]],
-                           tracematrix[,regexpr("C", obj@data$FWO_.1)[1]],
-                           tracematrix[,regexpr("G", obj@data$FWO_.1)[1]],
-                           tracematrix[,regexpr("T", obj@data$FWO_.1)[1]]
+    orderedmatrix <- cbind(tracematrix[,regexpr("A", obj@data$FWO.1)[1]],
+                           tracematrix[,regexpr("C", obj@data$FWO.1)[1]],
+                           tracematrix[,regexpr("G", obj@data$FWO.1)[1]],
+                           tracematrix[,regexpr("T", obj@data$FWO.1)[1]]
     )
     
 
     #check for valid chars
-    basecalls1 <- strsplit(obj@data$PBAS.2, "")[[1]]
-    basecalls1 <- paste0(basecalls1[basecalls1 %in% DNA_ALPHABET], 
-                         collapse = "")
-    if (nchar(basecalls1) != nchar(obj@data$PBAS.2)) {
+    basecalls1_old <- strsplit(obj@data$PBAS.2, "")[[1]]
+    basecalls1_new <- basecalls1_old[basecalls1_old %in% DNA_ALPHABET]
+    
+    if (length(basecalls1_old) != length(basecalls1_new)) {
       warning("Invalid characters removed from primary basecalls. This may result
                 in basecalls being shifted. Please check chromatogram.")
     }
-    #Appears normal to have them not match
-    #if (nchar(basecalls1) != length(obj@data$PLOC.2)) {
-    #  warning("Number of primary basecalls does not match the number of peaks. Please
-    #          check chromatogram.")
-    #}
-
+    basecalls1 <- paste0(basecalls1_new, collapse = "")
+    
+    # number of locations and calls do not always match
     basecalls1 <- DNAString(substr(basecalls1,1,length(obj@data$PLOC.2)))
     basecallpositions1 <- obj@data$PLOC.2 + 1
     if(!is.null(obj@data$P2BA.1)) {
-      basecalls2 <- strsplit(obj@data$P2BA.1, "")[[1]]
-      basecalls2 <- paste0(basecalls2[basecalls2 %in% DNA_ALPHABET], 
-                           collapse = "")
-      if (nchar(basecalls2) != nchar(obj@data$P2BA.1)) {
-        warning("Invalid characters removed from secondary basecalls. This may 
-                result in basecalls being shifted. Please check chromatogram.")
+      basecalls2_old <- strsplit(obj@data$P2BA.1, "")[[1]]
+      basecalls2_new <- basecalls2_old[basecalls2_old %in% DNA_ALPHABET]
+      
+      if (length(basecalls2_old) != length(basecalls2_new)) {
+        warning("Invalid characters removed from primary basecalls. This may result
+                in basecalls being shifted. Please check chromatogram.")
       }
-      #Appears normal to have them not match
-      #if (nchar(basecalls2) != length(obj@data$PLOC.2)) {
-      #  warning("Number of secondary basecalls does not match the number of peaks. Please
-      #        check chromatogram.")
-      #}
+      basecalls2 <- paste0(basecalls2_new, collapse = "")
+      
+      # number of locations and calls do not always match
       basecalls2 <- DNAString(substr(basecalls2,1,length(obj@data$PLOC.2)))
       basecallpositions2 <-obj@data$PLOC.2 + 1
     } else {
@@ -185,6 +180,10 @@ setMethod("makeBaseCalls", "sangerseq",
 )
 
 #' @rdname chromatogram
+#' @importFrom grDevices dev.off pdf
+#' @importFrom graphics axis lines mtext par rect
+#' @importFrom stats IQR quantile
+
 setMethod("chromatogram", "sangerseq", 
   function(obj, trim5=0, trim3=0, 
            showcalls=c("primary", "secondary", "both", "none"), 
@@ -232,7 +231,6 @@ setMethod("chromatogram", "sangerseq",
     endtrims <- ends
     endtrims[!trimmed] <- NA
     
-    ############### modified colors by leicheng 2020-08-02
     colortranslate <- c(A=rgb(red = 0, green = 0.69, blue =0.31), 
       C=rgb(red = 0.28, green = 0.43, blue = 0.88),
       G=rgb(red = 0, green = 0, blue = 0), 
@@ -275,7 +273,6 @@ setMethod("chromatogram", "sangerseq",
         rect(starttrim, 0, endtrim, ylims[2], col='red', border='transparent', 
              density=15)
       }
-      ############### modified colors and added polygon plot by leicheng 2020-08-02
       lines(traces[plotrange,1], col=rgb(red = 0, green = 0.69, blue =0.31), lwd=1.3)
       m <- length(traces[plotrange,1])
       xy <- data.frame(x=1:m,y=traces[plotrange,1])                    
@@ -304,7 +301,6 @@ setMethod("chromatogram", "sangerseq",
       x.poly <- c(xy$x, xy$x[m], xy$x[1]) # Adjoin two x-coordinates
       y.poly <- c(xy$y, 0, 0) # .. and the corresponding y-coordinates
       polygon(x.poly, y.poly, col=rgb(red = 0.99, green = 0.26, blue = 0.22, alpha = 0.15), border=NA)
-
       mtext(as.character(which(range)[1]), side=2, line=0, cex=cex.mtext)
       
       for(k in 1:length(lab1)) {
@@ -334,7 +330,7 @@ setMethod("chromatogram", "sangerseq",
     }
     if(!is.null(filename)) {
       dev.off()
-      cat(paste("Chromatogram saved to", filename, 
+      message(paste("Chromatogram saved to", filename, 
                 "in the current working directory"))
     }
     else par(originalpar)
